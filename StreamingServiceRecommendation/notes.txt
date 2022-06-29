@@ -1,0 +1,49 @@
+Netlix, Amazon Prime, DisneyPlus:  'type', 'title', director', 'cast', 'country', 'date_added', 'release_year', 'rating', 'duration', 'listed_in', 'description'
+
+https://www.spectrum.net/support/tv/tv-and-movie-ratings-descriptions
+
+['PG-13',
+ 'TV-MA',
+ 'PG',
+ 'TV-14',
+ 'TV-PG',
+ 'TV-Y',
+ 'TV-Y7',
+ 'R',
+ 'TV-G',
+ 'G',
+ 'NC-17',
+ '74 min',
+ '84 min',
+ '66 min',
+ 'NR',
+ nan,
+ 'TV-Y7-FV',
+ 'UR',
+ '13+',
+ 'ALL',
+ '18+',
+ '16+',
+ '7+',
+ 'TV-NR',
+ 'UNRATED',
+ '16',
+ 'AGES_16_',
+ 'AGES_18_',
+ 'ALL_AGES',
+ 'NOT_RATE']
+
+Paramount = "type","title","production_countries","release_year","age_certification","runtime","genres","description"
+
+Apple TV+: "Series Title", "Year Released", "Content Rating", "IMDB Rating", "R Rating", "Genre", "Description", "No of Seasons"
+
+TFIDF results:
+Input = Ganglands
+Index = 2
+Description = 'To protect his family from a powerful drug lord, skilled thief Mehdi and his expert team of robbers are pulled into a violent and deadly turf war.'
+Normalized Description = 'tv-ma crime tv shows international action adventure protect family powerful drug lord skilled thief mehdi expert team robbers pulled violent deadly turf war'
+
+Output = Narcos
+Index = 5305
+Description = "The true story of Colombia's infamously violent and powerful drug cartels fuels this gritty gangster drama series."
+Normalized Description = "tv-ma crime tv shows action adventure dramas true story colombia 's infamously violent powerful drug cartels fuels gritty gangster drama series"
