@@ -1,31 +1,35 @@
-# Reference:
-# https://www.youtube.com/watch?v=-KLtU_t5bXs
-# https://dash.plotly.com/datatable/callbacks
-# https://dash.plotly.com/datatable
-# https://dash.plotly.com/dash-html-components/button
-# https://python.tutorialink.com/do-a-button-click-from-code-in-plotly-dash/
-# https://github.com/Coding-with-Adam/Dash-by-Plotly/blob/master/Callbacks/Basic%20Callback/basic_callback.py
-# https://community.plotly.com/t/how-to-wrap-text-in-cell-in-dash-table/15687/6
-# https://stackoverflow.com/questions/35164019/filter-multiple-values-using-pandas
-# https://community.plotly.com/t/datatable-active-cell-row-information-in-multiple-page-tables/45783/2
-# https://community.plotly.com/t/multiple-outputs-in-dash-now-available/19437
-# https://stackoverflow.com/questions/63592900/plotly-dash-how-to-design-the-layout-using-dash-bootstrap-components
-# https://www.statology.org/pandas-get-index-of-row/
-# http://dash-bootstrap-components.opensource.faculty.ai/docs/components/card/
-# https://dash.plotly.com/dash-core-components/graph
-
 # Setup -------------------------------------------------------------
 import pandas as pd
-# import numpy as np
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import linear_kernel
+import numpy as np
+from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
+from sklearn.metrics.pairwise import linear_kernel, cosine_similarity
 
 import plotly.express as px
 from dash import Dash, dcc, html, Input, Output, State, callback, dash_table
 import dash_bootstrap_components as dbc
 
 # Import the data ----------------------------------------------------
-df = pd.read_excel("streaming_service_titles_TFIDF.xlsx", index_col=False);
+df = pd.read_excel("streaming_service_titles.xlsx", index_col=False);
+
+# Prepare the data ---------------------------------------------------
+techniqueSelector = [
+    {
+        "label":"TFIDF",
+        "value":0
+    },
+    {
+        "label":"Unigram",
+        "value":1
+    },
+    {
+        "label":"Bigram",
+        "value":2
+    },
+    {
+        "label":"Trigram",
+        "value":3
+    }
+];
 
 # Create elements of the webpage -------------------------------------
 heading = [html.H1("Streaming Service Recommendation System", style={"font-weight":"bold"})];
@@ -50,6 +54,16 @@ streamingServiceChecklistFilter = [
     )
 ];
 
+techniqueRadioButtonSelector = [
+    html.P("Text Mining Technique", style={"font-weight":"bold"}),
+    dcc.RadioItems(
+        id="technique_select",
+        options=[{"label":x.get("label"), "value":x.get("value")} for x in techniqueSelector],
+        value=techniqueSelector[0].get("value"),
+        inputStyle={"margin-right":"5px", "margin-left":"15px"}
+    )
+];
+
 selectedTitleInformation = [html.Div(id="title_out")];
 
 recommendationResultsInTable = [
@@ -57,7 +71,6 @@ recommendationResultsInTable = [
     html.Div(id="recommendation_results")
 ];
 
-# streamingServiceRecommendationChart = dcc.Graph(id="streaming_service_chart", figure={}, config={"displayModeBar":False});
 streamingServiceRecommendationChart = [html.Div(id="streaming_service_chart")];
 
 recommendedTitleInformation = [html.Div(id="tbl_out")];
@@ -71,12 +84,17 @@ pageStructure = [
             dbc.Card(children=[
                 dbc.CardBody(children=titleDropdownSelector)
             ])
-        ]),
+        ], width=5),
         dbc.Col(children=[
             dbc.Card(children=[
                 dbc.CardBody(children=streamingServiceChecklistFilter)
             ])
-        ])
+        ], width=4),
+        dbc.Col(children=[
+            dbc.Card(children=[
+                dbc.CardBody(children=techniqueRadioButtonSelector)
+            ])
+        ], width=3)
     ]),
     html.Br(),
     dbc.Row(children=[
@@ -109,11 +127,13 @@ def get_recommendations(dataframe, title_select, indices, cosine_sim):
     sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True);
     sim_scores = sim_scores[1:11];
     movie_indices = [i[0] for i in sim_scores];
-    dataframe1 = dataframe.copy();
     dataframe1 = dataframe[["title","description","Streaming Service"]].iloc[movie_indices];
+    similarityScores = [];
+    for i in range(len(sim_scores)):
+        similarityScores.append(round(sim_scores[i][1], 4));
+    dataframe1["Similarity Score"] =  similarityScores;
     dataframe1 = dataframe1.reset_index().rename(columns={"index":"id"});
     return dataframe1;
-    # return dataframe[["title","description","Streaming Service"]].iloc[movie_indices];
 
 def get_streamingServiceRecommendationChart(dataframeRecommendation):
     data = [];
@@ -152,19 +172,39 @@ def get_selectedTitleInformation(title_select):
     [
         Input("title_select", "value"),
         Input("streaming_service_select", "value"),
+        Input("technique_select", "value")
     ],
 )
-def get_recommendationResults(title_select, streaming_service_select):
+def get_recommendationResults(title_select, streaming_service_select, technique_select):
     dashTable = html.P("No recommendation results");
     chart = html.P("");
     if (title_select != None) & (len(streaming_service_select) != 0):
         print(title_select);
         print(streaming_service_select);
         dff = get_dataframeNLP(title_select, streaming_service_select);
-        tfidf = TfidfVectorizer(stop_words="english", min_df=0.005, sublinear_tf=True);
-        tfidf_matrix = tfidf.fit_transform(dff["Textual Info"]);
-        cosine_sim = linear_kernel(tfidf_matrix, tfidf_matrix);
+        
+        # tfidf = TfidfVectorizer(strip_accents="ascii", stop_words="english", min_df=0.0005, sublinear_tf=True);
+        # tfidf = TfidfVectorizer(max_df=.65, min_df=1, stop_words="english", use_idf=True, norm=None);
+        # tfidf = TfidfVectorizer(stop_words="english", min_df=0.005, sublinear_tf=True);
+        # tfidf_matrix = tfidf.fit_transform(dff["Textual Info"]);
+        # cosine_sim = linear_kernel(tfidf_matrix, tfidf_matrix);
+        if technique_select == 0:
+            vectorizer = TfidfVectorizer(stop_words="english", min_df=0.005, sublinear_tf=True);
+            matrix = vectorizer.fit_transform(dff["Textual Info"]);
+            cosine_sim = linear_kernel(matrix, matrix);
+        else:
+            for num in range(1,4):
+                if num == technique_select:
+                    n = num;
+                    print(n);
+                    vectorizer = CountVectorizer(analyzer='word', token_pattern=r'\b[a-zA-Z]{3,}\b', ngram_range=(n, n));
+            matrix = vectorizer.fit_transform(dff["Textual Info"]);
+            cosine_sim = cosine_similarity(matrix, matrix);
+        # matrix = vectorizer.fit_transform(dff["Textual Info"]);
+        # cosine_sim = linear_kernel(matrix, matrix);
         indices = pd.Series(dff.index, index=dff["title"]).drop_duplicates();
+
+        # Recommendation Results:
         df_recommendations = get_recommendations(dff, title_select, indices, cosine_sim=cosine_sim);
         dashTable = dash_table.DataTable(
             style_cell={
@@ -173,10 +213,19 @@ def get_recommendationResults(title_select, streaming_service_select):
             },
             data=df_recommendations.to_dict('records'),
             columns=[{"name": i, "id": i} for i in df_recommendations.columns if i != "id"],
+            style_cell_conditional=[
+                {
+                    'if': {'column_id': c},
+                    'textAlign': 'left'
+                } for c in df_recommendations.columns.tolist()[:-1]
+            ],
             id="tbl"
         );
+
+        # Streaming Service Chart:
         fig = get_streamingServiceRecommendationChart(df_recommendations);
-        chart = dcc.Graph(figure=fig, config={"displayModeBar":False});     
+        chart = dcc.Graph(figure=fig, config={"displayModeBar":False});
+            
     return dashTable, chart;
 
 @callback(
@@ -189,8 +238,9 @@ def get_recommendationResults(title_select, streaming_service_select):
 )
 def get_recommendedTitleInformation(active_cell, title_select, streaming_service_select):
     recommendedTitleInfo = html.P("No recommended title selected");
+    print(active_cell);
     if (bool(active_cell) == True) & (title_select != None) & (len(streaming_service_select) != 0):
-        print(str(active_cell));
+        # print(str(active_cell));
         row_id = active_cell.get("row_id");
         dff = get_dataframeNLP(title_select, streaming_service_select);
         print(dff.loc[row_id, "title"]);
